@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<window xmlns="http://schemas.haulmont.com/cuba/window.xsd"
+        caption="msg://editorCaption"
+        class="ru.udya.usercontexts.web.screens.product.ProductEdit"
+        datasource="productDs"
+        focusComponent="fieldGroup"
+        messagesPack="ru.udya.usercontexts.web.screens.product">
+    <dsContext>
+        <datasource id="productDs"
+                    class="ru.udya.usercontexts.entity.Product"
+                    view="_local"/>
+    </dsContext>
+    <dialogMode height="600"
+                width="800"/>
+    <layout expand="windowActions" spacing="true">
+        <fieldGroup id="fieldGroup" datasource="productDs">
+            <column width="250px">
+                <field property="name"/>
+            </column>
+        </fieldGroup>
+        <frame id="windowActions"
+               screen="editWindowActions"/>
+    </layout>
+</window>

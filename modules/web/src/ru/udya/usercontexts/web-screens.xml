@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<screen-config xmlns="http://schemas.haulmont.com/cuba/screens.xsd">
+
+    <screen id="cubausercontexts$Product.browse"
+            template="ru/udya/usercontexts/web/screens/product/product-browse.xml"/>
+    <screen id="cubausercontexts$Product.edit" template="ru/udya/usercontexts/web/screens/product/product-edit.xml"/>
+</screen-config>

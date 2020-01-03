@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CubaProjectState">
+    <option name="hasState" value="true" />
+    <option name="cubaModelState">
+      <CubaModelState>
+        <option name="repositories">
+          <list>
+            <RepositoryModelState>
+              <option name="url" value="https://dl.bintray.com/cuba-platform/main" />
+              <option name="user" value="" />
+              <option name="pass" value="/awcoVvWe18=" />
+              <option name="stateVersion" value="2" />
+            </RepositoryModelState>
+            <RepositoryModelState>
+              <option name="url" value="https://repo1.maven.org/maven2/" />
+              <option name="user" value="" />
+              <option name="pass" value="/awcoVvWe18=" />
+              <option name="stateVersion" value="2" />
+            </RepositoryModelState>
+            <RepositoryModelState>
+              <option name="url" value="https://jcenter.bintray.com/" />
+              <option name="user" value="" />
+              <option name="pass" value="/awcoVvWe18=" />
+              <option name="stateVersion" value="2" />
+            </RepositoryModelState>
+            <RepositoryModelState>
+              <option name="url" value="http://maven.vaadin.com/vaadin-addons" />
+              <option name="user" value="" />
+              <option name="pass" value="/awcoVvWe18=" />
+              <option name="stateVersion" value="2" />
+            </RepositoryModelState>
+          </list>
+        </option>
+        <option name="appComponents">
+          <list>
+            <DependencyModelState>
+              <option name="group" value="com.haulmont.cuba" />
+              <option name="name" value="cuba-global" />
+              <option name="version" value="6.10.15" />
+            </DependencyModelState>
+          </list>
+        </option>
+        <option name="artifactGroup" value="ru.udya.usercontexts" />
+        <option name="artifactVersion" value="0.1" />
+        <option name="artifactSnapshot" value="true" />
+        <option name="tomcatDir" value="$PROJECT_DIR$/deploy/tomcat" />
+        <option name="gradleVersion" value="4.3.1" />
+        <option name="dbmsDbType" value="postgres" />
+        <option name="oracleSystemUser" value="system" />
+        <option name="oracleSystemPassword" value="manager" />
+      </CubaModelState>
+    </option>
+    <option name="dbArtifacts">
+      <map>
+        <entry key="com.haulmont.cuba" value="$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.haulmont.cuba/cuba-core/6.10.15/634143a2ff548e701616a4116fabe1ef51a8b41b/cuba-core-6.10.15-db.zip" />
+      </map>
+    </option>
+  </component>
+</project>
