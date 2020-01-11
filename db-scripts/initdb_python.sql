@@ -16,9 +16,9 @@ create type id_with_tablename as (
 drop table cubausercontexts_context_log;
 create table cubausercontexts_context_log
 (
-    context_id uuid,
+    context_id uuid primary key,
     login      varchar(50),
-    operations hstore
+    operations hstore default hstore(array[]::varchar[])
 );
 
 create table CUBAUSERCONTEXTS_PRODUCT_DATA
@@ -73,7 +73,8 @@ WHERE CASE
 
 
 create or replace function insert_for_view() returns trigger as
-$$def normalize(value):
+$$
+def normalize(value):
     if value is None:
         return plpy.quote_nullable(value)
     elif isinstance(value, str):
@@ -95,17 +96,22 @@ values_without_id = [updated[k] for k in keys_without_id]
 sql_insert_keys_section = ",".join([plpy.quote_ident(k) for k in keys_without_id])
 sql_insert_values_section = ",".join([normalize(v) for v in values_without_id])
 
-query = "insert into {} (id, {}) values (row({}, {}), {}) " \
+query = """
+insert into {} (id, {})
+values (row({}, {}), {})"""\
     .format(table, sql_insert_keys_section, normalize(updated["id"]),
             normalize(context_session_id), sql_insert_values_section)
 
-plpy.debug("insert in view query: {}".format(query))
+plpy.info("insert in view query: {}".format(query))
 
 plpy.execute(query)
 
+# add information to the commit log
 if context_session_id is not None:
-    plpy.execute("update cubausercontexts_context_log set operations = operations || hstore({}, null)" \
-                 .format(plpy.quote_literal(TD["table_name"])))
+    plpy.execute("""
+update cubausercontexts_context_log
+set operations = operations || hstore({}, null)"""
+                 .format(normalize(table)))
 $$ language plpython3u;
 
 drop trigger cubausercontexts_product_insert_trigger on cubausercontexts_product;
@@ -117,8 +123,7 @@ execute function insert_for_view('cubausercontexts_product_data');
 
 --- cubausercontexts_product_update
 create or replace function update_for_view() returns trigger as
-$$
-def normalize(value):
+$$def normalize(value):
     if value is None:
         return plpy.quote_nullable(value)
     elif isinstance(value, str):
@@ -141,21 +146,26 @@ sql_update_set_section = ",".join(
     ["{} = {}".format(plpy.quote_ident(k), normalize(v)) for k, v in updated.items() if k != "id"])
 
 if context_session_id is None:
-    query = "update {} set {} where id = row({}, {})::id_with_context"
+    query = "update {} set {} where id = row({}, {})::id_with_context" \
         .format(table, sql_update_set_section,
                 normalize(updated["id"]), normalize(context_session_id))
 else:
     sql_insert_keys_section = ",".join([plpy.quote_ident(k) for k in keys_without_id])
     sql_insert_values_section = ",".join([normalize(v) for v in values_without_id])
 
-    query = """insert into {} (id, {}) values (row({}, {}), {}) on conflict (id, context_id)
-     where context_id is not null do update set {}"""
-        .format(table, sql_insert_keys_section, normalize(updated["id"]),
-                normalize(context_session_id), sql_insert_values_section, sql_update_set_section)
+query = """insert into {} (id, {}) values (row({}, {}), {}) on conflict (id)
+     where (id).context_id is not null do update set {}"""\
+    .format(table, sql_insert_keys_section, normalize(updated["id"]),
+        normalize(context_session_id), sql_insert_values_section, sql_update_set_section)
 
-plpy.debug(query)
+plpy.info(query)
 
 plpy.execute(query)
+
+# add information to the commit log
+if context_session_id is not None:
+    plpy.execute("update cubausercontexts_context_log set operations = operations || hstore({}, null)"
+                 .format(normalize(table)))
 $$ language plpython3u;
 
 create trigger cubausercontexts_product_update_trigger
@@ -202,6 +212,7 @@ execute function update_for_view('cubausercontexts_product_data');
 
 create or replace function foreign_key_constraint() returns trigger as
 $$
+
 foreign_key = TD["args"][0]
 foreign_table = TD["args"][1]
 table = TD["table_name"]
@@ -215,10 +226,10 @@ foreign_key_val = updated[foreign_key]
 
 query = None
 if context_session_id is None:
-    query = "select exists(select 1 from {} where id = row({}, null)::id_with_context)"
+    query = "select exists(select 1 from {} where id = row({}, null)::id_with_context)" \
         .format(foreign_table, plpy.quote_literal(foreign_key_val))
 else:
-    query = "select exists(select 1 from {} where id in [row({}, null)::id_with_context, row({}, {})::id_with_context] limit 1)"
+    query = "select exists(select 1 from {} where id in (row({}, null)::id_with_context, row({}, {})::id_with_context))" \
         .format(foreign_table, plpy.quote_literal(foreign_key_val),
                 plpy.quote_literal(foreign_key_val), plpy.quote_literal(context_session_id))
 
@@ -228,20 +239,87 @@ checking_result = plpy.execute(query)
 
 if not checking_result[0]["exists"]:
     plpy.error("insert or update on table \"{}\" violates foreign key constraint \"{}\"".format(table, TD["name"]),
-               detail="Key ({})=({}) is not present in table \"{}\"".format(foreign_key, foreign_key_val,
-                                                                            foreign_table))
+               detail="Key ({})=({}) is not present in table \"{}\""
+               .format(foreign_key, foreign_key_val, foreign_table))
 
 return None
 $$ language plpython3u;
 
-create or replace function commit_for_context(product cubausercontexts_product) returns integer as
+create or replace function create_context(context_id uuid, login varchar) returns integer as
 $$
+def normalize(value):
+    if value is None:
+        return plpy.quote_nullable(value)
+    elif isinstance(value, str):
+        return plpy.quote_nullable(value)
+    else:
+        return str(value)
+
+plpy.execute("insert into cubausercontexts_context_log (context_id, login) values ({}, {})"
+             .format(normalize(context_id), normalize(login)))
 
 $$ language plpython3u;
 
-create or replace function rollback_for_context(product cubausercontexts_product) returns integer as
+create or replace function commit_context(login varchar) returns integer as
 $$
+context_session_id_res = plpy.execute("SELECT get_session_context_id() as session_context_id")
+context_session_id = context_session_id_res[0]["session_context_id"]
 
+if context_session_id is None:
+    plpy.error("Context is not defined")
+
+operations = plpy.execute("""
+select akeys(operations) as tabls
+from cubausercontexts_context_log
+where context_id = {} limit 1"""
+                          .format(plpy.quote_literal(context_session_id)))
+
+tables = operations[0]["tabls"]
+
+plpy.info(tables)
+
+delete_queries = ["""
+delete
+from {} a using {} b
+where (a.id).context_id is null
+  and (b.id).context_id is not null
+  and (a.id).primary_id = (b.id).primary_id"""
+                      .format(plpy.quote_ident(t),
+                              plpy.quote_ident(t)) for t in tables ]
+
+update_queries = ["""
+update {}
+set id = row((id).primary_id, null)
+where (id).context_id = {}"""
+                      .format(plpy.quote_ident(t),
+                              plpy.quote_literal(context_session_id)) for t in tables]
+
+plpy.info("delete queries {}".format(delete_queries))
+plpy.info("update queries {}".format(update_queries))
+
+for query in delete_queries:
+    plpy.execute(query)
+
+for query in update_queries:
+    plpy.execute(query)
+
+# remove context session
+plpy.execute("""
+delete
+from cubausercontexts_context_log
+where context_id = {}"""
+             .format(plpy.quote_literal(context_session_id)))
+$$ language plpython3u;
+
+create or replace function rollback_context(login varchar) returns integer as
+$$
+context_session_id_res = plpy.execute("SELECT get_session_context_id() as session_context_id")
+context_session_id = context_session_id_res[0]["session_context_id"]
+
+if context_session_id is None:
+    plpy.error("Context is not defined")
+
+plpy.execute("select ")
 $$ language plpython3u;
 
 create table CUBAUSERCONTEXTS_ORDER_ITEM_DATA
@@ -303,3 +381,8 @@ WHERE CASE
           ELSE (id).context_id IS NULL
           END;
 
+create trigger cubausercontexts_order_item_insert_trigger
+    instead of insert
+    on cubausercontexts_order_item
+    for each row
+execute function insert_for_view('cubausercontexts_order_item_data');
