@@ -26,10 +26,10 @@ SELECT *
 FROM context_demo_data
 WHERE CASE
           WHEN get_long_context_id() IS NOT NULL
-              THEN (long_context_id = get_long_context_id()
+              THEN ((id).long_context_id = get_long_context_id()
               OR id NOT IN (SELECT inContext.id
                             FROM context_demo_data inContext
-                            WHERE inContext.long_context_id = get_long_context_id()))
+                            WHERE (inContext.id).long_context_id = get_long_context_id()))
           ELSE long_context_id IS NULL
           END;
 

@@ -1,6 +1,23 @@
+create type id_with_context as (
+    primary_id uuid,
+    long_context_id uuid
+);
+
+create type id_with_tablename as (
+    primary_id uuid,
+    tablename varchar
+);
+
+create table cubausercontexts_context_log
+(
+    long_context_id uuid,
+    login varchar(50),
+    operations id_with_tablename[]
+);
+
 create table CUBAUSERCONTEXTS_PRODUCT_DATA
 (
-    ID              uuid,
+    ID              id_with_context,
     VERSION         integer not null,
     CREATE_TS       timestamp,
     CREATED_BY      varchar(50),
@@ -12,27 +29,37 @@ create table CUBAUSERCONTEXTS_PRODUCT_DATA
     NAME            varchar(255),
     --
     long_context_id uuid,
-    is_deleted      boolean
+    --
+    PRIMARY KEY (ID)
 );
 
-CREATE OR REPLACE FUNCTION get_long_context_id() RETURNS uuid AS $$
+CREATE OR REPLACE FUNCTION get_long_context_id() RETURNS uuid AS
+$$
 BEGIN
     RETURN nullif(coalesce(current_setting('context.long_context_session_id', true), ''), '')::uuid;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE VIEW CUBAUSERCONTEXTS_PRODUCT AS
-SELECT *
+SELECT (id).primary_id as id,
+       VERSION,
+       CREATE_TS,
+       CREATED_BY,
+       UPDATE_TS,
+       UPDATED_BY,
+       DELETE_TS,
+       DELETED_BY,
+       NAME
 FROM CUBAUSERCONTEXTS_PRODUCT_DATA
 WHERE CASE
           WHEN get_long_context_id() IS NOT NULL
-              THEN (long_context_id = get_long_context_id()
-              OR id NOT IN (SELECT inContext.id
-                            FROM CUBAUSERCONTEXTS_PRODUCT_DATA inContext
-                            WHERE inContext.long_context_id = get_long_context_id()))
-          ELSE long_context_id IS NULL
+              THEN ((id).long_context_id = get_long_context_id()
+              OR id NOT IN
+                 (SELECT inContext.id
+                  FROM CUBAUSERCONTEXTS_PRODUCT_DATA inContext
+                  WHERE (inContext.id).long_context_id = get_long_context_id()))
+          ELSE (id).long_context_id IS NULL
           END;
-
 
 create or replace function cubausercontexts_product_insert() returns trigger as
 $$
@@ -44,22 +71,25 @@ begin
     context_session_id = get_long_context_id();
 
     insert into cubausercontexts_product_data
-    values (updated.id, updated.version, updated.create_ts,
+    values (row (updated.id, null), updated.version, updated.create_ts,
             updated.created_by, updated.update_ts, updated.updated_by,
             updated.delete_ts, updated.deleted_by, updated.name);
 
     if context_session_id is not null then
         update CUBAUSERCONTEXTS_PRODUCT_DATA
-        set long_context_id = context_session_id
-        where id = updated.id;
+        set id.long_context_id = context_session_id
+        where (id).primary_id = updated.id;
     end if;
 
     return updated;
 end;
 $$ language plpgsql;
 
-create trigger cubausercontexts_product_insert_trigger instead of insert on cubausercontexts_product
-    for each row execute function cubausercontexts_product_insert();
+create trigger cubausercontexts_product_insert_trigger
+    instead of insert
+    on cubausercontexts_product
+    for each row
+execute function cubausercontexts_product_insert();
 
 create or replace function cubausercontexts_product_update() returns trigger as
 $$
@@ -106,8 +136,11 @@ begin
 end;
 $$ language plpgsql;
 
-create trigger cubausercontexts_product_update_trigger instead of update on cubausercontexts_product
-    for each row execute function cubausercontexts_product_update();
+create trigger cubausercontexts_product_update_trigger
+    instead of update
+    on cubausercontexts_product
+    for each row
+execute function cubausercontexts_product_update();
 
 create or replace function cubausercontexts_product_delete() returns trigger as
 $$
@@ -128,12 +161,44 @@ begin
             updated.created_by, updated.update_ts, updated.updated_by,
             updated.delete_ts, updated.deleted_by, updated.name,
             context_session_id, true)
-    on conflict (id, long_context_id) where long_context_id is not null
-        do update set is_deleted = true;
+    on conflict (id, long_context_id)
+    where long_context_id is not null
+        do
+    update
+    set is_deleted = true;
 
     return prior;
 end;
 $$ language plpgsql;
 
-create trigger cubausercontexts_product_delete_trigger instead of delete on cubausercontexts_product
-    for each row execute function cubausercontexts_product_delete();
+create trigger cubausercontexts_product_delete_trigger
+    instead of delete
+    on cubausercontexts_product
+    for each row
+execute function cubausercontexts_product_delete();
+
+create or replace function cubausercontexts_product_commit(product cubausercontexts_product) returns integer as $$
+begin
+
+end;
+$$ language plpgsql;
+
+create table CUBAUSERCONTEXTS_ORDER_ITEM
+(
+    ID         uuid,
+    VERSION    integer not null,
+    CREATE_TS  timestamp,
+    CREATED_BY varchar(50),
+    UPDATE_TS  timestamp,
+    UPDATED_BY varchar(50),
+    DELETE_TS  timestamp,
+    DELETED_BY varchar(50),
+    --
+    ORDER_ID   uuid,
+    PRODUCT_ID id_with_context,
+    --
+    primary key (ID)
+);
+
+alter table CUBAUSERCONTEXTS_ORDER_ITEM
+    add constraint FK_CUBAUSERCONTEXTS_ORDER_ITEM_ON_PRODUCT foreign key (PRODUCT_ID) references cubausercontexts_product_data (ID);

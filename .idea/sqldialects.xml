@@ -3,5 +3,8 @@
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/db-scripts/experiment.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/db-scripts/initdb.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/db-scripts/initdb_python.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/db-scripts/test.sql" dialect="PostgreSQL" />
+    <file url="file://$PROJECT_DIR$/db-scripts/test_python.sql" dialect="PostgreSQL" />
   </component>
 </project>
