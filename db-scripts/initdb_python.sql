@@ -64,10 +64,11 @@ FROM CUBAUSERCONTEXTS_PRODUCT_DATA
 WHERE CASE
           WHEN get_session_context_id() IS NOT NULL
               THEN ((id).context_id = get_session_context_id()
-              OR id NOT IN
-                 (SELECT inContext.id
-                  FROM CUBAUSERCONTEXTS_PRODUCT_DATA inContext
-                  WHERE (inContext.id).context_id = get_session_context_id()))
+              OR ((id).context_id IS NULL
+                  AND id NOT IN
+                      (SELECT inContext.id
+                       FROM CUBAUSERCONTEXTS_PRODUCT_DATA inContext
+                       WHERE (inContext.id).context_id = get_session_context_id())))
           ELSE (id).context_id IS NULL
           END;
 
@@ -255,12 +256,14 @@ def normalize(value):
     else:
         return str(value)
 
-plpy.execute("insert into cubausercontexts_context_log (context_id, login) values ({}, {})"
+res = plpy.execute("insert into cubausercontexts_context_log (context_id, login) values ({}, {})"
              .format(normalize(context_id), normalize(login)))
+
+return res.nrows()
 
 $$ language plpython3u;
 
-create or replace function commit_context(login varchar) returns integer as
+create or replace function commit_context() returns integer as
 $$
 context_session_id_res = plpy.execute("SELECT get_session_context_id() as session_context_id")
 context_session_id = context_session_id_res[0]["session_context_id"]
@@ -300,8 +303,10 @@ plpy.info("update queries {}".format(update_queries))
 for query in delete_queries:
     plpy.execute(query)
 
+countAffected = 0
 for query in update_queries:
-    plpy.execute(query)
+    res = plpy.execute(query)
+    countAffected = countAffected + res.nrows()
 
 # remove context session
 plpy.execute("""
@@ -309,6 +314,8 @@ delete
 from cubausercontexts_context_log
 where context_id = {}"""
              .format(plpy.quote_literal(context_session_id)))
+
+return countAffected
 $$ language plpython3u;
 
 create or replace function rollback_context(login varchar) returns integer as

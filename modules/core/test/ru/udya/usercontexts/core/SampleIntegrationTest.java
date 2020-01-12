@@ -1,6 +1,6 @@
 package ru.udya.usercontexts.core;
 
-import ru.udya.usercontexts.CubausercontextsTestContainer;
+import ru.udya.usercontexts.CubaUserContextsTestContainer;
 import com.haulmont.cuba.core.EntityManager;
 import com.haulmont.cuba.core.Persistence;
 import com.haulmont.cuba.core.Transaction;
@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 public class SampleIntegrationTest {
 
     @ClassRule
-    public static CubausercontextsTestContainer cont = CubausercontextsTestContainer.Common.INSTANCE;
+    public static CubaUserContextsTestContainer cont = CubaUserContextsTestContainer.Common.INSTANCE;
 
     private Metadata metadata;
     private Persistence persistence;

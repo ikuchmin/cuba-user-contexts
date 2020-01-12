@@ -45,6 +45,7 @@
         <option name="artifactVersion" value="0.1" />
         <option name="artifactSnapshot" value="true" />
         <option name="tomcatDir" value="$PROJECT_DIR$/deploy/tomcat" />
+        <option name="groovySupport" value="true" />
         <option name="gradleVersion" value="4.3.1" />
         <option name="dbmsDbType" value="postgres" />
         <option name="oracleSystemUser" value="system" />

@@ -14,7 +14,10 @@ insert into CUBAUSERCONTEXTS_PRODUCT
 values (uuid_generate_v4(), 1, '2020-01-04 00:11:53', 'admin', '2020-01-04 00:11:53', null, null, null, 'oeu');
 commit;
 
-select * from cubausercontexts_product_data;
+begin work;
+set local context.session_context_id = 'ff704958-1ced-e47f-6820-14c25aaa5a49';
+select * from cubausercontexts_product;
+commit;
 
 begin work;
 set local context.session_context_id = '295385ad-50e1-422e-8a49-c5f633be0b32';

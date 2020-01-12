@@ -9,9 +9,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class CubausercontextsTestContainer extends TestContainer {
+public class CubaUserContextsTestContainer extends TestContainer {
 
-    public CubausercontextsTestContainer() {
+    public CubaUserContextsTestContainer() {
         super();
         appComponents = new ArrayList<>(Arrays.asList(
                 "com.haulmont.cuba"
@@ -51,9 +51,9 @@ public class CubausercontextsTestContainer extends TestContainer {
         dbPassword = resourceElem.attributeValue("password");
     }
 
-    public static class Common extends CubausercontextsTestContainer {
+    public static class Common extends CubaUserContextsTestContainer {
 
-        public static final CubausercontextsTestContainer.Common INSTANCE = new CubausercontextsTestContainer.Common();
+        public static final CubaUserContextsTestContainer.Common INSTANCE = new CubaUserContextsTestContainer.Common();
 
         private static volatile boolean initialized;
 
